@@ -34,7 +34,6 @@ import com.beust.klaxon.Klaxon
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import com.xwray.groupie.Item
-import gg.strims.android.items.PrivateChatMessage
 import gg.strims.android.models.*
 import io.ktor.client.HttpClient
 import io.ktor.client.features.websocket.WebSockets
@@ -50,6 +49,7 @@ import kotlinx.android.synthetic.main.activity_chat.*
 import kotlinx.android.synthetic.main.autofill_item.view.*
 import kotlinx.android.synthetic.main.chat_message_item.view.*
 import kotlinx.android.synthetic.main.chat_message_item.view.messageChatMessage
+import kotlinx.android.synthetic.main.private_chat_message_item.view.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -58,7 +58,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.*
+import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
@@ -283,7 +283,6 @@ class ChatActivity : AppCompatActivity() {
         } else {
             CurrentUser.options = Options()
         }
-        Log.d("TAG", "${CurrentUser.options!!.greentext}, ${CurrentUser.options!!.emotes}")
     }
 
     private fun displayNotification(message: Message) {
@@ -324,12 +323,8 @@ class ChatActivity : AppCompatActivity() {
 
         override fun bind(viewHolder: GroupieViewHolder, position: Int) {
             if (CurrentUser.options!!.showTime) {
-                val date = Date(messageData.timestamp)
-                val time = if (date.minutes < 10) {
-                    "${date.hours}:0${date.minutes}"
-                } else {
-                    "${date.hours}:${date.minutes}"
-                }
+                val dateFormat = SimpleDateFormat("HH:mm")
+                val time = dateFormat.format(messageData.timestamp)
                 viewHolder.itemView.timestampChatMessage.visibility = View.VISIBLE
                 viewHolder.itemView.timestampChatMessage.text = time
             }
@@ -400,8 +395,6 @@ class ChatActivity : AppCompatActivity() {
                     }
                 }
             }
-
-            viewHolder.itemView.messageChatMessage.setText(ssb, TextView.BufferType.SPANNABLE)
 
 //            if (messageData.entities.me!!.bounds.isNotEmpty()) {
 //                ssb.setSpan(Typeface.ITALIC, messageData.entities.me!!.bounds[0], messageData.entities.me!!.bounds[1], Spannable.SPAN_INCLUSIVE_INCLUSIVE)
@@ -483,6 +476,37 @@ class ChatActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    inner class PrivateChatMessage(private val messageData: Message) : Item<GroupieViewHolder>() {
+        override fun getLayout(): Int {
+            return R.layout.private_chat_message_item
+        }
+
+        @SuppressLint("SetTextI18n")
+        override fun bind(viewHolder: GroupieViewHolder, position: Int) {
+            if (CurrentUser.options!!.ignoreList.contains(messageData.nick)) {
+                return
+            }
+
+            if (CurrentUser.options!!.showTime) {
+                val dateFormat = SimpleDateFormat("HH:mm")
+                val time = dateFormat.format(messageData.timestamp)
+                viewHolder.itemView.timestampPrivateMessage.visibility = View.VISIBLE
+                viewHolder.itemView.timestampPrivateMessage.text = time
+            }
+
+            if (CurrentUser.options!!.greentext) {
+                if (messageData.data.first() == '>') {
+                    viewHolder.itemView.messagePrivateMessage.setTextColor(Color.parseColor("#789922"))
+                } else {
+                    viewHolder.itemView.messagePrivateMessage.setTextColor(Color.parseColor("#FFFFFF"))
+                }
+            }
+
+            viewHolder.itemView.usernamePrivateMessage.text = messageData.nick
+            viewHolder.itemView.messagePrivateMessage.text = " whispered: ${messageData.data}"
         }
     }
 
