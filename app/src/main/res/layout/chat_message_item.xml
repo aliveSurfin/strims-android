@@ -11,7 +11,6 @@
         android:id="@+id/usernameChatMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
         android:text="Username"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
@@ -22,7 +21,6 @@
         android:id="@+id/messageChatMessage"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
         android:layout_marginBottom="4dp"
         android:autoLink="web"
         android:maxWidth="200dp"
@@ -30,8 +28,8 @@
         android:textColor="#D8D8D8"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/usernameChatMessage" />
+        app:layout_constraintStart_toStartOf="@+id/timestampChatMessage"
+        app:layout_constraintTop_toBottomOf="parent" />
 
     <TextView
         android:id="@+id/timestampChatMessage"

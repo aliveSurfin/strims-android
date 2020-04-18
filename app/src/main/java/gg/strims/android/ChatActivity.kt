@@ -6,9 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Color
+import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Editable
@@ -16,21 +15,25 @@ import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.TextWatcher
 import android.text.style.DynamicDrawableSpan
+import android.text.style.ForegroundColorSpan
 import android.text.style.ImageSpan
 import android.util.Log
 import android.util.LruCache
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import androidx.core.app.TaskStackBuilder
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.beust.klaxon.Klaxon
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
@@ -48,7 +51,14 @@ import io.ktor.http.cio.websocket.send
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.android.synthetic.main.activity_chat.*
 import kotlinx.android.synthetic.main.autofill_item.view.*
+import kotlinx.android.synthetic.main.chat_message_item.*
 import kotlinx.android.synthetic.main.chat_message_item.view.*
+import kotlinx.android.synthetic.main.chat_message_item.view.botFlairChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.messageChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.timestampChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.usernameChatMessage
+import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.*
+import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.view.*
 import kotlinx.android.synthetic.main.private_chat_message_item.view.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -82,6 +92,7 @@ class ChatActivity : AppCompatActivity() {
     private val autofillAdapter = GroupAdapter<GroupieViewHolder>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
@@ -421,7 +432,7 @@ class ChatActivity : AppCompatActivity() {
             viewHolder.itemView.usernameChatMessage.text = "${messageData.nick}:"
 
             val ssb = SpannableStringBuilder(messageData.data)
-
+            ssb.insert(0, "   ")
             if (CurrentUser.options!!.emotes) {
                 if (messageData.entities.emotes != null && messageData.entities.emotes!!.isNotEmpty() && messageData.entities.emotes!![0].name != "") {
                     messageData.entities.emotes!!.forEach {
@@ -443,22 +454,22 @@ class ChatActivity : AppCompatActivity() {
                                     Bitmap.createScaledBitmap(bitmap, width, height, false)
                                 ssb.setSpan(
                                     ImageSpan(this@ChatActivity, resized),
-                                    it.bounds[0],
-                                    it.bounds[1],
+                                    it.bounds[0] + 3,
+                                    it.bounds[1] + 3,
                                     Spannable.SPAN_INCLUSIVE_INCLUSIVE
                                 )
-                                viewHolder.itemView.messageChatMessage.setText(
-                                    ssb,
-                                    TextView.BufferType.SPANNABLE
-                                )
+//                                viewHolder.itemView.messageChatMessage.setText(
+//                                    ssb,
+//                                    TextView.BufferType.SPANNABLE
+//                                )
                             }
                         } else {
                             val gif = gifMemoryCache.get(it.name)
                             if (gif != null) {
                                 ssb.setSpan(
                                     ImageSpan(gif, DynamicDrawableSpan.ALIGN_BOTTOM),
-                                    it.bounds[0],
-                                    it.bounds[1],
+                                    it.bounds[0] + 3,
+                                    it.bounds[1] + 3,
                                     Spannable.SPAN_INCLUSIVE_INCLUSIVE
                                 )
                             }
@@ -477,7 +488,48 @@ class ChatActivity : AppCompatActivity() {
 //
 //            }
 
-            viewHolder.itemView.messageChatMessage.setText(ssb, TextView.BufferType.SPANNABLE)
+//
+
+
+            viewHolder.itemView.viewTreeObserver.addOnGlobalLayoutListener(
+                object : ViewTreeObserver.OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        if (isConsecutive) {
+                            if (viewHolder.itemView.chevronChatMessage.measuredWidth == 0) {
+                                return
+                            }
+                        } else {
+                            if (viewHolder.itemView.usernameChatMessage.measuredWidth == 0){
+                                return
+                            }
+                        }
+
+                        viewHolder.itemView.messageChatMessage.viewTreeObserver.removeOnGlobalLayoutListener(
+                            this
+                        );
+                        val conf = Bitmap.Config.ARGB_8888
+                        val resizedTEST = Bitmap.createBitmap(
+                            viewHolder.itemView.usernameChatMessage.right + 10,
+                            1,
+                            conf
+                        )
+                        ssb.setSpan(
+                            ImageSpan(this@ChatActivity, resizedTEST),
+                            0,
+                            1,
+                            Spannable.SPAN_INCLUSIVE_INCLUSIVE
+                        )
+                        viewHolder.itemView.messageChatMessage.setText(
+                            ssb,
+                            TextView.BufferType.SPANNABLE
+                        )
+
+                    }
+
+                });
+
+
+
 
             viewHolder.itemView.usernameChatMessage.setOnClickListener {
                 for (i in 0 until adapter.itemCount) {
@@ -586,6 +638,15 @@ class ChatActivity : AppCompatActivity() {
             viewHolder.itemView.usernamePrivateMessage.text = messageData.nick
             viewHolder.itemView.messagePrivateMessage.text = " whispered: ${messageData.data}"
         }
+
+        inline fun View.waitForLayout(crossinline f: () -> Unit) = with(viewTreeObserver) {
+            addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    removeOnGlobalLayoutListener(this)
+                    f()
+                }
+            })
+        }
     }
 
     inner class ChatClient {
@@ -671,6 +732,7 @@ class ChatActivity : AppCompatActivity() {
                         GlobalScope.launch {
                             val bitmap = getBitmapFromURL(url)
                             bitmapMemoryCache.put(it.name, bitmap)
+
                         }
                     } else {
                         GlobalScope.launch {
