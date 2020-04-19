@@ -6,9 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Color
+import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Editable
@@ -19,6 +17,7 @@ import android.text.style.DynamicDrawableSpan
 import android.text.style.ImageSpan
 import android.util.Log
 import android.util.LruCache
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -31,6 +30,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import androidx.core.app.TaskStackBuilder
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.beust.klaxon.Klaxon
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
@@ -49,6 +49,12 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.android.synthetic.main.activity_chat.*
 import kotlinx.android.synthetic.main.autofill_item.view.*
 import kotlinx.android.synthetic.main.chat_message_item.view.*
+import kotlinx.android.synthetic.main.chat_message_item.view.botFlairChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.messageChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.timestampChatMessage
+import kotlinx.android.synthetic.main.chat_message_item.view.usernameChatMessage
+import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.*
+import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.view.*
 import kotlinx.android.synthetic.main.private_chat_message_item.view.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -420,8 +426,9 @@ class ChatActivity : AppCompatActivity() {
 
             viewHolder.itemView.usernameChatMessage.text = "${messageData.nick}:"
 
-            val ssb = SpannableStringBuilder(messageData.data)
-
+            val ssb =
+                SpannableStringBuilder("  ${messageData.data}") // 1 space to replace with padding image 1 space for aligning image
+            val messageStart = 2 // adjust bounds accordingly
             if (CurrentUser.options!!.emotes) {
                 if (messageData.entities.emotes != null && messageData.entities.emotes!!.isNotEmpty() && messageData.entities.emotes!![0].name != "") {
                     messageData.entities.emotes!!.forEach {
@@ -442,9 +449,12 @@ class ChatActivity : AppCompatActivity() {
                                 val resized =
                                     Bitmap.createScaledBitmap(bitmap, width, height, false)
                                 ssb.setSpan(
-                                    ImageSpan(this@ChatActivity, resized),
-                                    it.bounds[0],
-                                    it.bounds[1],
+                                    CenteredImageSpan(
+                                        this@ChatActivity,
+                                        resized
+                                    ), //
+                                    it.bounds[0] + messageStart,
+                                    it.bounds[1] + messageStart,
                                     Spannable.SPAN_INCLUSIVE_INCLUSIVE
                                 )
                                 viewHolder.itemView.messageChatMessage.setText(
@@ -457,8 +467,8 @@ class ChatActivity : AppCompatActivity() {
                             if (gif != null) {
                                 ssb.setSpan(
                                     ImageSpan(gif, DynamicDrawableSpan.ALIGN_BOTTOM),
-                                    it.bounds[0],
-                                    it.bounds[1],
+                                    it.bounds[0] + messageStart,
+                                    it.bounds[1] + messageStart,
                                     Spannable.SPAN_INCLUSIVE_INCLUSIVE
                                 )
                             }
@@ -476,6 +486,54 @@ class ChatActivity : AppCompatActivity() {
 //            if (messageData.entities.greentext!!.bounds.isNotEmpty()) {
 //
 //            }
+            var width: Int
+            if (!isConsecutive) {
+                var bounds = Rect()
+                var paint = Paint()
+                paint.textSize = viewHolder.itemView.usernameChatMessage.textSize
+                paint.getTextBounds(
+                    viewHolder.itemView.usernameChatMessage.text.toString(),
+                    0,
+                    viewHolder.itemView.usernameChatMessage.text.toString().length,
+                    bounds
+                )
+                width = bounds.width()
+                if (messageData.features.contains("bot") || messageData.nick == "Info") {
+                    width += dipToPixels(16f, resources) // 12 botflair width 4 margin
+
+                }
+                width += dipToPixels(4f, resources) // 4 margin
+
+            } else {
+                width = dipToPixels(8f, resources) // 10 chevron width // 8 because 10 looked odd
+            }
+
+            if (CurrentUser.options!!.showTime) {
+                var bounds = Rect()
+                var paint = Paint()
+                paint.textSize = viewHolder.itemView.timestampChatMessage.textSize
+                paint.getTextBounds(
+                    viewHolder.itemView.timestampChatMessage.text.toString(),
+                    0,
+                    viewHolder.itemView.timestampChatMessage.text.toString().length,
+                    bounds
+                )
+                width += bounds.width()
+            }
+            val conf = Bitmap.Config.ARGB_8888
+            width += dipToPixels(1f, resources) // give a little margin
+            val paddingForLeft = Bitmap.createBitmap(
+                width + 20,
+                1,
+                conf
+            )
+            ssb.setSpan(
+                ImageSpan(this@ChatActivity, paddingForLeft),
+                0,
+                1,
+                Spannable.SPAN_INCLUSIVE_INCLUSIVE
+            )
+
 
             viewHolder.itemView.messageChatMessage.setText(ssb, TextView.BufferType.SPANNABLE)
 
@@ -558,6 +616,7 @@ class ChatActivity : AppCompatActivity() {
             if (isConsecutive) {
                 viewHolder.itemView.usernameChatMessage.visibility = View.GONE
                 viewHolder.itemView.botFlairChatMessage.visibility = View.GONE
+
             }
         }
 

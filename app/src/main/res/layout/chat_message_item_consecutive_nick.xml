@@ -14,9 +14,9 @@
         android:layout_height="12dp"
         android:layout_marginTop="2dp"
         android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="@id/messageChatMessage"
+        app:layout_constraintBottom_toBottomOf="@id/timestampChatMessage"
         app:layout_constraintStart_toEndOf="@+id/timestampChatMessage"
-        app:layout_constraintTop_toTopOf="@id/messageChatMessage"
+        app:layout_constraintTop_toTopOf="@id/timestampChatMessage"
         app:srcCompat="@drawable/gray_right_chevron"
         tools:visibility="visible" />
 
@@ -37,13 +37,12 @@
         android:id="@+id/messageChatMessage"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="2dp"
         android:autoLink="web"
         android:maxWidth="200dp"
         android:text="Message"
         android:textColor="#D8D8D8"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/chevronChatMessage"
+        app:layout_constraintStart_toStartOf="@+id/timestampChatMessage"
         app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible" />
 
@@ -52,10 +51,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
+        android:layout_marginTop="2dp"
         android:textColor="#737373"
         android:textSize="12sp"
         android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="@+id/messageChatMessage"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@id/messageChatMessage"
         tools:visibility="visible" />

@@ -2,12 +2,23 @@ package gg.strims.android
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.Resources
+import android.util.TypedValue
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 
+fun dipToPixels(dip: Float, resources: Resources): Int {
+
+    val f = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        dip,
+        resources.displayMetrics
+    )
+    return Math.ceil(f.toDouble()).toInt()
+}
 
 fun keyRequestFocus(editText: EditText, context: Context) {
     editText.requestFocus()
