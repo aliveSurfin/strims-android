@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Editable
@@ -15,6 +16,7 @@ import android.text.SpannableStringBuilder
 import android.text.TextWatcher
 import android.text.style.DynamicDrawableSpan
 import android.text.style.ImageSpan
+import android.util.DisplayMetrics
 import android.util.Log
 import android.util.LruCache
 import android.util.TypedValue
@@ -53,7 +55,7 @@ import kotlinx.android.synthetic.main.chat_message_item.view.botFlairChatMessage
 import kotlinx.android.synthetic.main.chat_message_item.view.messageChatMessage
 import kotlinx.android.synthetic.main.chat_message_item.view.timestampChatMessage
 import kotlinx.android.synthetic.main.chat_message_item.view.usernameChatMessage
-import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.*
+import kotlinx.android.synthetic.main.chat_message_item.view.messageOverflowChatMessage
 import kotlinx.android.synthetic.main.chat_message_item_consecutive_nick.view.*
 import kotlinx.android.synthetic.main.private_chat_message_item.view.*
 import kotlinx.coroutines.GlobalScope
@@ -374,6 +376,65 @@ class ChatActivity : AppCompatActivity() {
             return R.layout.chat_message_item
         }
 
+        private fun createMessageSSB(messageString: String, position: Int): SpannableStringBuilder {
+            val ssb =
+                SpannableStringBuilder(messageString) // 1 space to replace with padding image 1 space for aligning image
+            if (CurrentUser.options!!.emotes) {
+                if (messageData.entities.emotes != null && messageData.entities.emotes!!.isNotEmpty() && messageData.entities.emotes!![0].name != "") {
+                    messageData.entities.emotes!!.forEach {
+                        var animated = false
+                        CurrentUser.emotes!!.forEach { it2 ->
+                            if (it.name == it2.name && it2.versions[0].animated) {
+                                animated = true
+                            }
+
+                        }
+                        if (it.bounds[0] >= position && it.bounds[1] < messageString.length + position) {
+                            if (it.bounds[1] > messageString.length - position) {
+                                Log.d("test", "${it.name} || $messageString || $position")
+                            }
+                            if (!animated) {
+                                val bitmap = bitmapMemoryCache.get(it.name)
+                                if (bitmap != null) {
+                                    var width = bitmap.width
+                                    if (it.modifiers.contains("wide")) {
+                                        width = bitmap.width * 3
+                                    }
+                                    val height = bitmap.height
+                                    val resized =
+                                        Bitmap.createScaledBitmap(bitmap, width, height, false)
+                                    ssb.setSpan(
+                                        CenteredImageSpan(
+                                            this@ChatActivity,
+                                            resized
+                                        ), //
+                                        it.bounds[0] - position, //TODO: adjust bounds
+                                        it.bounds[1] - position,
+                                        Spannable.SPAN_INCLUSIVE_INCLUSIVE
+                                    )
+//                                viewHolder.itemView.messageChatMessage.setText(
+//                                    ssb,
+//                                    TextView.BufferType.SPANNABLE
+//                                )
+                                }
+                            } else {
+                                val gif = gifMemoryCache.get(it.name)
+                                if (gif != null) {
+                                    ssb.setSpan(
+                                        ImageSpan(gif, DynamicDrawableSpan.ALIGN_BOTTOM),
+                                        it.bounds[0] - position,
+                                        it.bounds[1] - position,
+                                        Spannable.SPAN_INCLUSIVE_INCLUSIVE
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return ssb
+        }
+
         override fun bind(viewHolder: GroupieViewHolder, position: Int) {
             if (CurrentUser.options!!.showTime) {
                 val dateFormat = SimpleDateFormat("HH:mm")
@@ -426,56 +487,6 @@ class ChatActivity : AppCompatActivity() {
 
             viewHolder.itemView.usernameChatMessage.text = "${messageData.nick}:"
 
-            val ssb =
-                SpannableStringBuilder("  ${messageData.data}") // 1 space to replace with padding image 1 space for aligning image
-            val messageStart = 2 // adjust bounds accordingly
-            if (CurrentUser.options!!.emotes) {
-                if (messageData.entities.emotes != null && messageData.entities.emotes!!.isNotEmpty() && messageData.entities.emotes!![0].name != "") {
-                    messageData.entities.emotes!!.forEach {
-                        var animated = false
-                        CurrentUser.emotes!!.forEach { it2 ->
-                            if (it.name == it2.name && it2.versions[0].animated) {
-                                animated = true
-                            }
-                        }
-                        if (!animated) {
-                            val bitmap = bitmapMemoryCache.get(it.name)
-                            if (bitmap != null) {
-                                var width = bitmap.width
-                                if (it.modifiers.contains("wide")) {
-                                    width = bitmap.width * 3
-                                }
-                                val height = bitmap.height
-                                val resized =
-                                    Bitmap.createScaledBitmap(bitmap, width, height, false)
-                                ssb.setSpan(
-                                    CenteredImageSpan(
-                                        this@ChatActivity,
-                                        resized
-                                    ), //
-                                    it.bounds[0] + messageStart,
-                                    it.bounds[1] + messageStart,
-                                    Spannable.SPAN_INCLUSIVE_INCLUSIVE
-                                )
-                                viewHolder.itemView.messageChatMessage.setText(
-                                    ssb,
-                                    TextView.BufferType.SPANNABLE
-                                )
-                            }
-                        } else {
-                            val gif = gifMemoryCache.get(it.name)
-                            if (gif != null) {
-                                ssb.setSpan(
-                                    ImageSpan(gif, DynamicDrawableSpan.ALIGN_BOTTOM),
-                                    it.bounds[0] + messageStart,
-                                    it.bounds[1] + messageStart,
-                                    Spannable.SPAN_INCLUSIVE_INCLUSIVE
-                                )
-                            }
-                        }
-                    }
-                }
-            }
 
 //            if (messageData.entities.me!!.bounds.isNotEmpty()) {
 //                ssb.setSpan(Typeface.ITALIC, messageData.entities.me!!.bounds[0], messageData.entities.me!!.bounds[1], Spannable.SPAN_INCLUSIVE_INCLUSIVE)
@@ -486,8 +497,132 @@ class ChatActivity : AppCompatActivity() {
 //            if (messageData.entities.greentext!!.bounds.isNotEmpty()) {
 //
 //            }
+            if (true) { // !isConsecutive
+                //get username width
+
+                var bounds = Rect()
+                var paint = Paint()
+                paint.textSize = viewHolder.itemView.usernameChatMessage.textSize
+                paint.getTextBounds(
+                    viewHolder.itemView.usernameChatMessage.text.toString(),
+                    0,
+                    viewHolder.itemView.usernameChatMessage.text.toString().length,
+                    bounds
+                )
+                val usernameWidth = bounds.width()
+
+                val displayMetrics = DisplayMetrics()
+                windowManager.defaultDisplay.getMetrics(displayMetrics)
+                val screenWidth = displayMetrics.widthPixels
+
+                val firstLineWidth = screenWidth - usernameWidth
+                Log.d(
+                    "test",
+                    "${messageData.nick} : $screenWidth :  $usernameWidth $firstLineWidth"
+                )
+                var curWidth = 0
+                val test = messageData.data.split(" ")
+                var emoteLast = false
+                var urlLast = false
+                var firstLineEnd = -1
+                var curPosition = 0
+                for (i in 0 until test.size) {
+                    val messageItem = test[i]
+                    var curEmote: ChatEmote? = null
+                    messageData.entities.emotes?.forEach { messageEmote ->
+                        if (messageEmote.name == messageItem) {
+                            curEmote = messageEmote
+                            //break
+                        }
+                    }
+                    if (curEmote != null) { // TODO: null checking
+                        val bitmap = bitmapMemoryCache.get(curEmote!!.name)
+                        var width = 0
+                        if (bitmap != null) {
+                            width = bitmap.width
+                            if (curEmote!!.modifiers.contains("wide")) {
+                                width = bitmap.width * 3
+                            }
+                            curWidth += width
+                        }
+
+                    } else {
+                        var bounds = Rect()
+                        var paint = Paint()
+                        paint.textSize = viewHolder.itemView.messageChatMessage.textSize
+                        paint.getTextBounds(
+                            " $messageItem ",
+                            0,
+                            messageItem.length + 2,
+                            bounds
+                        )
+                        curWidth += bounds.width()
+                    }
+
+                    //TODO: null checking
+
+                    if (curEmote != null) {
+                        if (curWidth > firstLineWidth) {
+                            firstLineEnd = curPosition
+                            emoteLast = true
+                            break
+                        }
+                    } else {
+                        if (curWidth > firstLineWidth) {
+                            firstLineEnd = curPosition
+                            val urlRegex =
+                                "^((https?|ftp)://|(www|ftp)\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+([/?].*)?$"
+
+                            val p: Pattern = Pattern.compile(urlRegex)
+                            val m: Matcher = p.matcher(messageItem)
+                            if (m.find()) {
+                                urlLast = true
+                            }
+                            break
+
+                        }
+                    }
+                    curPosition += (messageItem.length + 1)
+                }
+                if (firstLineEnd != -1) {
+                    var firstLineText = messageData.data.substring(0, firstLineEnd)
+                    var overflowText =
+                        messageData.data.substring(firstLineEnd)
+                    Log.d("test", "${messageData.nick}  :  $firstLineText \n $overflowText")
+                    val ssb1: SpannableStringBuilder
+                    val ssb2: SpannableStringBuilder
+                    if (emoteLast) {
+                        ssb1 = createMessageSSB(firstLineText, firstLineEnd)
+                        ssb2 = createMessageSSB(overflowText, messageData.data.length)
+                    } else {
+                        if (urlLast) {
+                            //split into two and both have clickable url span with respective text
+                            ssb1 = createMessageSSB(firstLineText, 0)
+                            ssb2 = createMessageSSB(overflowText, firstLineEnd)
+                        } else {
+                            ssb1 = createMessageSSB(firstLineText, 0)
+                            ssb2 = createMessageSSB(overflowText, firstLineEnd)
+                        }
+                    }
+                    viewHolder.itemView.messageChatMessage.setText(
+                        ssb1,
+                        TextView.BufferType.SPANNABLE
+                    )
+                    viewHolder.itemView.messageOverflowChatMessage.setText(
+                        ssb2,
+                        TextView.BufferType.SPANNABLE
+                    )
+                } else {
+                    val ssb = createMessageSSB(messageData.data, 0)
+                    viewHolder.itemView.messageChatMessage.setText(
+                        ssb,
+                        TextView.BufferType.SPANNABLE
+                    )
+                    viewHolder.itemView.messageOverflowChatMessage.visibility = View.GONE
+                }
+            }
             var width: Int
-            if (!isConsecutive) {
+            if (!isConsecutive && false) {
                 var bounds = Rect()
                 var paint = Paint()
                 paint.textSize = viewHolder.itemView.usernameChatMessage.textSize
@@ -498,6 +633,40 @@ class ChatActivity : AppCompatActivity() {
                     bounds
                 )
                 width = bounds.width()
+                var bounds2 = Rect()
+                var paint2 = Paint()
+                paint2.textSize = viewHolder.itemView.messageChatMessage.textSize
+                paint2.getTextBounds(
+                    viewHolder.itemView.messageChatMessage.text.toString(),
+                    0,
+                    viewHolder.itemView.messageChatMessage.text.toString().length,
+                    bounds2
+                )
+                Log.d("test", viewHolder.itemView.messageChatMessage.text.toString())
+//                if (maxEmoteHeight > 0 && false) {
+//                    val conf = Bitmap.Config.ARGB_8888
+//                    val usernamePaddingTop = Bitmap.createBitmap(
+//                        bounds.width() + 1,
+//                        maxEmoteHeight,
+//                        conf
+//                    )
+//                    val bDraw = BitmapDrawable(resources, usernamePaddingTop)
+//                    bDraw.setBounds(
+//                        0,
+//                        0,
+//                        bounds.width() + 1,
+//                        (maxEmoteHeight / 2) - (bounds.height() / 2) - (bounds2.height() / 3)
+//                    )
+//                    //bDraw.setBounds(0, 0, 0, 0)
+//                    viewHolder.itemView.usernameChatMessage.setCompoundDrawables(
+//                        null,
+//                        bDraw,
+//                        null,
+//                        null
+//                    )
+//                    viewHolder.itemView.messageChatMessage.lineHeight = maxEmoteHeight
+//                }
+
                 if (messageData.features.contains("bot") || messageData.nick == "Info") {
                     width += dipToPixels(16f, resources) // 12 botflair width 4 margin
 
@@ -507,35 +676,35 @@ class ChatActivity : AppCompatActivity() {
             } else {
                 width = dipToPixels(8f, resources) // 10 chevron width // 8 because 10 looked odd
             }
-
-            if (CurrentUser.options!!.showTime) {
-                var bounds = Rect()
-                var paint = Paint()
-                paint.textSize = viewHolder.itemView.timestampChatMessage.textSize
-                paint.getTextBounds(
-                    viewHolder.itemView.timestampChatMessage.text.toString(),
-                    0,
-                    viewHolder.itemView.timestampChatMessage.text.toString().length,
-                    bounds
+            if (false) {
+                if (CurrentUser.options!!.showTime) {
+                    var bounds = Rect()
+                    var paint = Paint()
+                    paint.textSize = viewHolder.itemView.timestampChatMessage.textSize
+                    paint.getTextBounds(
+                        viewHolder.itemView.timestampChatMessage.text.toString(),
+                        0,
+                        viewHolder.itemView.timestampChatMessage.text.toString().length,
+                        bounds
+                    )
+                    width += bounds.width()
+                }
+                val conf = Bitmap.Config.ARGB_8888
+                width += dipToPixels(1f, resources) // give a little margin
+                val paddingForLeft = Bitmap.createBitmap(
+                    width + 20,
+                    1,
+                    conf
                 )
-                width += bounds.width()
+//                ssb.setSpan(
+//                    ImageSpan(this@ChatActivity, paddingForLeft),
+//                    0,
+//                    1,
+//                    Spannable.SPAN_INCLUSIVE_INCLUSIVE
+//                )
             }
-            val conf = Bitmap.Config.ARGB_8888
-            width += dipToPixels(1f, resources) // give a little margin
-            val paddingForLeft = Bitmap.createBitmap(
-                width + 20,
-                1,
-                conf
-            )
-            ssb.setSpan(
-                ImageSpan(this@ChatActivity, paddingForLeft),
-                0,
-                1,
-                Spannable.SPAN_INCLUSIVE_INCLUSIVE
-            )
 
-
-            viewHolder.itemView.messageChatMessage.setText(ssb, TextView.BufferType.SPANNABLE)
+            //viewHolder.itemView.messageChatMessage.setText(ssb, TextView.BufferType.SPANNABLE)
 
             viewHolder.itemView.usernameChatMessage.setOnClickListener {
                 for (i in 0 until adapter.itemCount) {
@@ -756,7 +925,7 @@ class ChatActivity : AppCompatActivity() {
         }
 
         suspend fun onConnect() = client.wss(
-            host = "chat.strims.gg",
+            host = "chat2.strims.gg",
             path = "/ws",
             request = {
                 retrieveCookie()

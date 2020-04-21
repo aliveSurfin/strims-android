@@ -27,22 +27,30 @@
         android:textColor="#FFFFFF"
         android:textStyle="bold"
         app:layout_constraintStart_toEndOf="@id/chevronChatMessage"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="@id/messageChatMessage" />
 
     <TextView
         android:id="@+id/messageChatMessage"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
         android:autoLink="web"
-        android:maxWidth="200dp"
         android:text="Message"
         android:textColor="#D8D8D8"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/usernameChatMessage"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <TextView
+        android:id="@+id/messageOverflowChatMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:autoLink="web"
+        android:maxWidth="200dp"
+        android:text="MessageOverflow"
+        android:textColor="#D8D8D8"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/messageChatMessage" />
     <TextView
         android:id="@+id/timestampChatMessage"
         android:layout_width="wrap_content"
